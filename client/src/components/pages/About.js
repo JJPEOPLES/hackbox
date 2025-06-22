@@ -20,7 +20,7 @@ const About = () => {
           It's designed to help users learn Linux commands, practice system administration, and explore cybersecurity concepts in a safe, isolated environment.
         </Typography>
         <Typography variant="body1" paragraph>
-          The platform connects to a VM hosted on fly.io, allowing you to access a full Linux environment without installing anything on your local machine.
+          The platform connects to a VM hosted on Render.com, allowing you to access a full Linux environment without installing anything on your local machine.
         </Typography>
       </Paper>
       
@@ -88,7 +88,7 @@ const About = () => {
           <Typography variant="body1">• Memory: 512MB RAM</Typography>
           <Typography variant="body1">• CPU: 1 shared vCPU</Typography>
           <Typography variant="body1">• Storage: 1GB</Typography>
-          <Typography variant="body1">• Hosting: fly.io</Typography>
+          <Typography variant="body1">• Hosting: Render.com</Typography>
         </Box>
         
         <Typography variant="body1" paragraph>
@@ -98,7 +98,7 @@ const About = () => {
           <Typography variant="body1">• Frontend: React, Material-UI, xterm.js</Typography>
           <Typography variant="body1">• Backend: Node.js, Express, Socket.IO</Typography>
           <Typography variant="body1">• Containerization: Docker</Typography>
-          <Typography variant="body1">• Cloud Platform: fly.io</Typography>
+          <Typography variant="body1">• Cloud Platform: Render.com</Typography>
         </Box>
       </Paper>
     </Container>
