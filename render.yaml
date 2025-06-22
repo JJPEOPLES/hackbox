@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: hackbox-server
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_URL
+        fromService:
+          name: hackbox-client
+          type: static_site
+          property: url
+
+  - type: static_site
+    name: hackbox-client
+    buildCommand: cd client && npm install && npm run build
+    publishDir: client/build
+    envVars:
+      - key: REACT_APP_API_URL
+        fromService:
+          name: hackbox-server
+          type: web
+          property: url
+      - key: REACT_APP_SOCKET_URL
+        fromService:
+          name: hackbox-server
+          type: web
+          property: url
