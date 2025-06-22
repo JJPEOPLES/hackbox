@@ -91,6 +91,22 @@ app.post('/api/vm/stop', async (req, res) => {
   }
 });
 
+// VNC access endpoint
+app.get('/api/vm/vnc', async (req, res) => {
+  try {
+    // For now, we'll return a placeholder response
+    // In a real implementation, you would set up a VNC server and return actual connection details
+    res.json({
+      available: false,
+      message: 'GUI access is not currently available on this deployment',
+      note: 'GUI access requires additional configuration on the server'
+    });
+  } catch (error) {
+    console.error('Error getting VNC details:', error);
+    res.status(500).json({ error: 'Failed to get VNC details' });
+  }
+});
+
 // Socket.io for terminal
 io.on('connection', (socket) => {
   console.log('New client connected');

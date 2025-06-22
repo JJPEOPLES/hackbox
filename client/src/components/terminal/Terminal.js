@@ -175,9 +175,16 @@ const Terminal = () => {
     setError(null);
     
     // Connect to socket.io server
-    socketRef.current = io(config.socketUrl);
+    console.log('Connecting to socket server at:', config.socketUrl);
+    socketRef.current = io(config.socketUrl, {
+      transports: ['websocket', 'polling'], // Try WebSocket first, then fallback to polling
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000
+    });
 
     socketRef.current.on('connect', () => {
+      console.log('Socket connected successfully');
       setIsConnected(true);
       setIsLoading(false);
       
@@ -187,32 +194,40 @@ const Terminal = () => {
     });
 
     socketRef.current.on('terminal-output', (data) => {
-      xtermRef.current.write(data);
+      if (xtermRef.current) {
+        xtermRef.current.write(data);
+      }
     });
 
     socketRef.current.on('connect_error', (err) => {
-      setError(`Connection error: ${err.message}`);
+      console.error('Socket connection error:', err);
+      setError(`Connection error: ${err.message}. Please check your network connection and try again.`);
       setIsLoading(false);
       setIsConnected(false);
     });
 
-    socketRef.current.on('disconnect', () => {
+    socketRef.current.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
       setIsConnected(false);
-      xtermRef.current.writeln('');
-      xtermRef.current.writeln('Disconnected from terminal. Session ended.');
+      if (xtermRef.current) {
+        xtermRef.current.writeln('');
+        xtermRef.current.writeln(`Disconnected from terminal. Reason: ${reason}`);
+      }
     });
 
     // Handle user input
-    xtermRef.current.onData((data) => {
-      if (isConnected && socketRef.current) {
-        socketRef.current.emit('terminal-input', data);
-      }
-    });
+    if (xtermRef.current) {
+      xtermRef.current.onData((data) => {
+        if (socketRef.current && socketRef.current.connected) {
+          socketRef.current.emit('terminal-input', data);
+        }
+      });
+    }
 
     // Handle terminal resize
     if (fitAddonRef.current) {
       const dimensions = fitAddonRef.current.proposeDimensions();
-      if (dimensions) {
+      if (dimensions && socketRef.current) {
         socketRef.current.emit('terminal-resize', dimensions);
       }
     }

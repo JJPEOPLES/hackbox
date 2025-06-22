@@ -20,7 +20,8 @@ import {
   Stop as StopIcon,
   Memory as MemoryIcon,
   Storage as StorageIcon,
-  Timer as TimerIcon
+  Timer as TimerIcon,
+  Computer as ComputerIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import config from '../../config';
@@ -176,6 +177,15 @@ const Dashboard = () => {
         >
           Open Terminal
         </Button>
+        <Button
+          variant="outlined"
+          component={RouterLink}
+          to="/gui"
+          startIcon={<ComputerIcon />}
+          disabled={vmStatus !== 'running'}
+        >
+          Open GUI
+        </Button>
       </Box>
 
       <Grid container spacing={3}>
@@ -234,11 +244,13 @@ const Dashboard = () => {
                 </Button>
                 <Button
                   variant="outlined"
-                  startIcon={<MemoryIcon />}
+                  startIcon={<ComputerIcon />}
+                  component={RouterLink}
+                  to="/gui"
                   disabled={vmStatus !== 'running'}
                   fullWidth
                 >
-                  System Monitor
+                  GUI Access
                 </Button>
                 <Button
                   variant="outlined"

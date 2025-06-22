@@ -15,7 +15,8 @@ import {
 import {
   Terminal as TerminalIcon,
   Info as InfoIcon,
-  Menu as MenuIcon
+  Menu as MenuIcon,
+  Computer as ComputerIcon
 } from '@mui/icons-material';
 
 const Header = () => {
@@ -81,6 +82,13 @@ const Header = () => {
               </MenuItem>
               <MenuItem 
                 component={RouterLink} 
+                to="/gui"
+                onClick={handleClose}
+              >
+                GUI Access
+              </MenuItem>
+              <MenuItem 
+                component={RouterLink} 
                 to="/about"
                 onClick={handleClose}
               >
@@ -104,6 +112,14 @@ const Header = () => {
               startIcon={<TerminalIcon />}
             >
               Terminal
+            </Button>
+            <Button 
+              color="inherit" 
+              component={RouterLink} 
+              to="/gui"
+              startIcon={<ComputerIcon />}
+            >
+              GUI Access
             </Button>
             <Button 
               color="inherit" 

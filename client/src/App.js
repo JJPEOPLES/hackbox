@@ -9,6 +9,7 @@ import Footer from './components/layout/Footer';
 import Dashboard from './components/pages/Dashboard';
 import Terminal from './components/terminal/Terminal';
 import About from './components/pages/About';
+import GuiAccess from './components/pages/GuiAccess';
 
 const darkTheme = createTheme({
   palette: {
@@ -55,6 +56,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/terminal" element={<Terminal />} />
+          <Route path="/gui" element={<GuiAccess />} />
           <Route path="/about" element={<About />} />
         </Routes>
         <Footer />
