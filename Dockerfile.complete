@@ -52,17 +52,12 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && apt-get clean
 
-# Install VNC, XFCE, and required tools
+# Install XFCE, xrdp, and required tools
 RUN apt-get update && apt-get install -y \
     xfce4 \
     xfce4-terminal \
     xfce4-goodies \
-    tightvncserver \
-    tigervnc-standalone-server \
-    tigervnc-common \
-    x11vnc \
-    novnc \
-    websockify \
+    xrdp \
     net-tools \
     supervisor \
     nano \
@@ -75,35 +70,44 @@ RUN apt-get update && apt-get install -y \
     dbus-x11 \
     libxfont2 \
     xfonts-base \
-    xfonts-100dpi \
-    xfonts-75dpi \
-    xfonts-cyrillic \
-    x11-xserver-utils \
     xauth \
     x11-utils \
     fonts-dejavu \
     fonts-liberation \
-    xfonts-scalable \
-    xvfb \
     && apt-get clean
 
-# Set up VNC password
-RUN mkdir -p /root/.vnc
-RUN echo "hackbox" | vncpasswd -f > /root/.vnc/passwd
-RUN chmod 600 /root/.vnc/passwd
+# Configure xrdp
+RUN sed -i 's/port=3389/port=3389/g' /etc/xrdp/xrdp.ini
+RUN sed -i 's/max_bpp=32/max_bpp=24/g' /etc/xrdp/xrdp.ini
+RUN sed -i 's/xserverbpp=24/xserverbpp=24/g' /etc/xrdp/xrdp.ini
+RUN sed -i 's/crypt_level=high/crypt_level=none/g' /etc/xrdp/xrdp.ini
+RUN sed -i 's/security_layer=negotiate/security_layer=rdp/g' /etc/xrdp/xrdp.ini
+RUN sed -i 's/allow_channels=true/allow_channels=false/g' /etc/xrdp/xrdp.ini
+RUN sed -i 's/bitmap_compression=true/bitmap_compression=true/g' /etc/xrdp/xrdp.ini
+RUN sed -i 's/max_idle_time=0/max_idle_time=0/g' /etc/xrdp/xrdp.ini
+RUN sed -i 's/black=000000/black=000000/g' /etc/xrdp/xrdp.ini
 
-# Create .Xresources file
-RUN echo "Xft.dpi: 96" > /root/.Xresources
-RUN echo "Xft.antialias: true" >> /root/.Xresources
-RUN echo "Xft.hinting: true" >> /root/.Xresources
-RUN echo "Xft.rgba: rgb" >> /root/.Xresources
-RUN echo "Xft.autohint: false" >> /root/.Xresources
-RUN echo "Xft.hintstyle: hintslight" >> /root/.Xresources
-RUN echo "Xft.lcdfilter: lcddefault" >> /root/.Xresources
-RUN echo "XTerm*background: black" >> /root/.Xresources
-RUN echo "XTerm*foreground: white" >> /root/.Xresources
-RUN echo "XTerm*faceName: DejaVu Sans Mono" >> /root/.Xresources
-RUN echo "XTerm*faceSize: 11" >> /root/.Xresources
+# Set up xrdp user
+RUN useradd -m -s /bin/bash hackbox
+RUN echo "hackbox:hackbox" | chpasswd
+RUN usermod -aG sudo hackbox
+
+# Configure XFCE as the default session
+RUN echo "xfce4-session" > /etc/skel/.Xclients
+RUN chmod +x /etc/skel/.Xclients
+RUN echo "xfce4-session" > /home/hackbox/.Xclients
+RUN chmod +x /home/hackbox/.Xclients
+RUN echo "startxfce4" > /home/hackbox/.xsession
+RUN chmod +x /home/hackbox/.xsession
+
+# Configure xrdp to use XFCE
+RUN echo "#!/bin/sh" > /etc/xrdp/startwm.sh
+RUN echo "if [ -r /etc/default/locale ]; then" >> /etc/xrdp/startwm.sh
+RUN echo "  . /etc/default/locale" >> /etc/xrdp/startwm.sh
+RUN echo "  export LANG LANGUAGE" >> /etc/xrdp/startwm.sh
+RUN echo "fi" >> /etc/xrdp/startwm.sh
+RUN echo "startxfce4" >> /etc/xrdp/startwm.sh
+RUN chmod +x /etc/xrdp/startwm.sh
 
 # Create supervisord.conf file directly
 RUN mkdir -p /etc/supervisor/conf.d/
@@ -119,24 +123,36 @@ RUN echo 'autorestart=false' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'startsecs=0' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'priority=100' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo '[program:vncserver]' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'command=/app/scripts/start-vnc.sh' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'stdout_logfile=/var/log/vncserver.log' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'stderr_logfile=/var/log/vncserver-err.log' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '[program:rdp-setup]' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=/app/scripts/start-rdp.sh' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autorestart=false' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startsecs=0' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'priority=90' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '[program:xrdp]' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=/usr/sbin/xrdp --nodaemon' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stdout_logfile=/var/log/xrdp.log' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stderr_logfile=/var/log/xrdp-err.log' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'environment=HOME="/root",USER="root",DISPLAY=":1"' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'startsecs=10' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'startretries=5' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'stopasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'killasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo '[program:novnc]' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'command=bash -c "sleep 5 && /usr/share/novnc/utils/launch.sh --vnc 127.0.0.1:5901 --listen 6080 --web /usr/share/novnc"' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '[program:xrdp-sesman]' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=/usr/sbin/xrdp-sesman --nodaemon' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stdout_logfile=/var/log/xrdp-sesman.log' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stderr_logfile=/var/log/xrdp-sesman-err.log' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'priority=200' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startsecs=10' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startretries=5' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stopasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'killasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '[program:node-server]' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'command=node /app/server/server.js' >> /etc/supervisor/conf.d/supervisord.conf
@@ -149,6 +165,18 @@ RUN echo 'environment=NODE_ENV="production",PORT="5000"' >> /etc/supervisor/conf
 # Create startup script directly
 RUN mkdir -p /app/scripts
 RUN echo '#!/bin/bash' > /app/scripts/startup.sh
+
+# Create RDP startup script
+RUN echo '#!/bin/bash' > /app/scripts/start-rdp.sh
+RUN echo 'echo "Configuring XRDP for Render.com..."' >> /app/scripts/start-rdp.sh
+RUN echo 'mkdir -p /var/run/xrdp' >> /app/scripts/start-rdp.sh
+RUN echo 'mkdir -p /var/log/xrdp' >> /app/scripts/start-rdp.sh
+RUN echo 'touch /var/log/xrdp/xrdp.log' >> /app/scripts/start-rdp.sh
+RUN echo 'touch /var/log/xrdp/xrdp-sesman.log' >> /app/scripts/start-rdp.sh
+RUN echo 'chown -R root:root /var/run/xrdp' >> /app/scripts/start-rdp.sh
+RUN echo 'chown -R root:root /var/log/xrdp' >> /app/scripts/start-rdp.sh
+RUN echo 'echo "XRDP configuration complete"' >> /app/scripts/start-rdp.sh
+RUN chmod +x /app/scripts/start-rdp.sh
 
 # Create VNC startup script
 RUN echo '#!/bin/bash' > /app/scripts/start-vnc.sh
@@ -330,17 +358,18 @@ RUN echo "Checking server directory:" && \
     echo "Checking client build:" && \
     ls -la client/build || echo "Build directory not found!"
 
-# Update the VNC endpoint in server.js
+# Update the GUI access endpoint in server.js for RDP
 RUN sed -i 's/available: false/available: true/g' /app/server/server.js
-RUN sed -i 's/message: .*/message: "GUI access is available via VNC",/g' /app/server/server.js
-RUN sed -i 's/note: .*/url: "\/novnc\/vnc.html?resize=scale&autoconnect=true&port=6080",\n      password: "hackbox"/g' /app/server/server.js
+RUN sed -i 's/message: .*/message: "GUI access is available via RDP",/g' /app/server/server.js
+RUN sed -i 's/note: .*/note: "Connect using any RDP client to " + req.headers.host + " on port 3389\\nUsername: hackbox\\nPassword: hackbox"/g' /app/server/server.js
 
 # Expose ports
-EXPOSE 5000 6080 5901 10000
+EXPOSE 5000 3389 10000
 
-# Set NODE_ENV to production
+# Set environment variables
 ENV NODE_ENV=production
-ENV VNC_ENABLED=true
+ENV GUI_ENABLED=true
+ENV RDP_PORT=3389
 
 # Start services
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

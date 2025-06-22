@@ -119,31 +119,34 @@ app.post('/api/vm/stop', async (req, res) => {
   }
 });
 
-// VNC access endpoint
+// GUI access endpoint (RDP)
 app.get('/api/vm/vnc', async (req, res) => {
   try {
-    // Check if we're running in the VNC-enabled container
-    const vncEnabled = process.env.VNC_ENABLED === 'true';
+    // Check if we're running in the GUI-enabled container
+    const guiEnabled = process.env.GUI_ENABLED === 'true';
     
-    if (vncEnabled) {
-      // Return VNC connection details with fixed URL that doesn't use host header
+    if (guiEnabled) {
+      // Return RDP connection details
       res.json({
         available: true,
-        message: 'GUI access is available via VNC',
-        url: `/novnc/vnc.html?resize=scale&autoconnect=true&port=6080`,
-        password: 'hackbox'
+        message: 'GUI access is available via RDP',
+        note: `Connect using any RDP client to ${req.headers.host} on port 3389\nUsername: hackbox\nPassword: hackbox`,
+        protocol: 'rdp',
+        username: 'hackbox',
+        password: 'hackbox',
+        port: 3389
       });
     } else {
-      // Return placeholder response for non-VNC deployments
+      // Return placeholder response for non-GUI deployments
       res.json({
         available: false,
         message: 'GUI access is not currently available on this deployment',
-        note: 'GUI access requires the VNC-enabled container'
+        note: 'GUI access requires the RDP-enabled container'
       });
     }
   } catch (error) {
-    console.error('Error getting VNC details:', error);
-    res.status(500).json({ error: 'Failed to get VNC details' });
+    console.error('Error getting GUI access details:', error);
+    res.status(500).json({ error: 'Failed to get GUI access details' });
   }
 });
 
