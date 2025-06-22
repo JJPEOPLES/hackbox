@@ -1,5 +1,5 @@
 # Build stage for client
-FROM node:18-alpine AS client-builder
+FROM node:18 AS client-builder
 
 WORKDIR /app/client
 
@@ -16,18 +16,25 @@ COPY client ./
 RUN npm run build
 
 # Build stage for server
-FROM node:18-alpine AS server-builder
+FROM node:18 AS server-builder
 
 WORKDIR /app/server
 
 # Copy server package.json files
 COPY server/package*.json ./
 
+# Install build dependencies for node-pty
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && ln -s /usr/bin/python3 /usr/bin/python
+
 # Install server dependencies with production flag
 RUN npm install --only=production
 
 # Final stage
-FROM node:18-alpine
+FROM node:18-slim
 
 WORKDIR /app
 
