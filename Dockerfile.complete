@@ -69,6 +69,13 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     make \
     g++ \
+    dbus-x11 \
+    libxfont2 \
+    xfonts-base \
+    xfonts-100dpi \
+    xfonts-75dpi \
+    xfonts-cyrillic \
+    x11-xserver-utils \
     && apt-get clean
 
 # Set up VNC password
@@ -91,11 +98,16 @@ RUN echo 'startsecs=0' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'priority=100' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '[program:vncserver]' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'command=/usr/bin/vncserver :1 -geometry 1280x800 -depth 24 -localhost no' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=bash -c "pkill Xtigervnc || true; pkill Xtightvnc || true; pkill Xvnc || true; rm -f /tmp/.X1-lock /tmp/.X11-unix/X1 || true; /usr/bin/vncserver :1 -geometry 1280x800 -depth 24 -localhost no"' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autorestart=unexpected' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'environment=HOME="/root",USER="root"' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startsecs=5' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startretries=3' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stopasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'killasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'exitcodes=0,2' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '[program:novnc]' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'command=/usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080' >> /etc/supervisor/conf.d/supervisord.conf
@@ -115,6 +127,12 @@ RUN echo 'environment=NODE_ENV="production",PORT="5000"' >> /etc/supervisor/conf
 RUN mkdir -p /app/scripts
 RUN echo '#!/bin/bash' > /app/scripts/startup.sh
 RUN echo '' >> /app/scripts/startup.sh
+RUN echo '# Clean up any existing VNC processes and lock files' >> /app/scripts/startup.sh
+RUN echo 'pkill Xtigervnc || true' >> /app/scripts/startup.sh
+RUN echo 'pkill Xtightvnc || true' >> /app/scripts/startup.sh
+RUN echo 'pkill Xvnc || true' >> /app/scripts/startup.sh
+RUN echo 'rm -f /tmp/.X1-lock /tmp/.X11-unix/X1 || true' >> /app/scripts/startup.sh
+RUN echo '' >> /app/scripts/startup.sh
 RUN echo '# Create VNC config' >> /app/scripts/startup.sh
 RUN echo 'mkdir -p ~/.vnc' >> /app/scripts/startup.sh
 RUN echo '' >> /app/scripts/startup.sh
@@ -122,7 +140,9 @@ RUN echo '# Create xstartup file' >> /app/scripts/startup.sh
 RUN echo 'echo "#!/bin/sh" > ~/.vnc/xstartup' >> /app/scripts/startup.sh
 RUN echo 'echo "unset SESSION_MANAGER" >> ~/.vnc/xstartup' >> /app/scripts/startup.sh
 RUN echo 'echo "unset DBUS_SESSION_BUS_ADDRESS" >> ~/.vnc/xstartup' >> /app/scripts/startup.sh
-RUN echo 'echo "startxfce4 &" >> ~/.vnc/xstartup' >> /app/scripts/startup.sh
+RUN echo 'echo "export XKL_XMODMAP_DISABLE=1" >> ~/.vnc/xstartup' >> /app/scripts/startup.sh
+RUN echo 'echo "export XDG_CURRENT_DESKTOP=XFCE" >> ~/.vnc/xstartup' >> /app/scripts/startup.sh
+RUN echo 'echo "exec startxfce4" >> ~/.vnc/xstartup' >> /app/scripts/startup.sh
 RUN echo '' >> /app/scripts/startup.sh
 RUN echo 'chmod +x ~/.vnc/xstartup' >> /app/scripts/startup.sh
 RUN echo '' >> /app/scripts/startup.sh
