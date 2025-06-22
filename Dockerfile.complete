@@ -78,111 +78,111 @@ RUN chmod 600 /root/.vnc/passwd
 
 # Create supervisord.conf file directly
 RUN mkdir -p /etc/supervisor/conf.d/
-RUN echo '[supervisord]
-nodaemon=true
-loglevel=info
-user=root
-
-[program:startup]
-command=/app/scripts/startup.sh
-autostart=true
-autorestart=false
-startsecs=0
-priority=100
-
-[program:vncserver]
-command=/usr/bin/vncserver :1 -geometry 1280x800 -depth 24 -localhost no
-autostart=true
-autorestart=true
-user=root
-environment=HOME="/root",USER="root"
-
-[program:novnc]
-command=/usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080
-autostart=true
-autorestart=true
-priority=200
-
-[program:node-server]
-command=node /app/server/server.js
-directory=/app
-autostart=true
-autorestart=true
-priority=300
-environment=NODE_ENV="production",PORT="5000"' > /etc/supervisor/conf.d/supervisord.conf
+RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'nodaemon=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'loglevel=info' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '[program:startup]' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=/app/scripts/startup.sh' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autorestart=false' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startsecs=0' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'priority=100' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '[program:vncserver]' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=/usr/bin/vncserver :1 -geometry 1280x800 -depth 24 -localhost no' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'environment=HOME="/root",USER="root"' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '[program:novnc]' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=/usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'priority=200' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '[program:node-server]' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=node /app/server/server.js' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'directory=/app' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'priority=300' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'environment=NODE_ENV="production",PORT="5000"' >> /etc/supervisor/conf.d/supervisord.conf
 
 # Create startup script directly
 RUN mkdir -p /app/scripts
-RUN echo '#!/bin/bash
-
-# Create VNC config
-mkdir -p ~/.vnc
-
-# Create xstartup file
-echo "#!/bin/sh
-unset SESSION_MANAGER
-unset DBUS_SESSION_BUS_ADDRESS
-startxfce4 &" > ~/.vnc/xstartup
-
-chmod +x ~/.vnc/xstartup
-
-# Set up XFCE theme
-mkdir -p ~/.config/xfce4/xfconf/xfce-perchannel-xml/
-echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<channel name=\"xsettings\" version=\"1.0\">
-  <property name=\"Net\" type=\"empty\">
-    <property name=\"ThemeName\" type=\"string\" value=\"Adwaita-dark\"/>
-    <property name=\"IconThemeName\" type=\"string\" value=\"Adwaita\"/>
-  </property>
-  <property name=\"Gtk\" type=\"empty\">
-    <property name=\"CursorThemeName\" type=\"string\" value=\"Adwaita\"/>
-    <property name=\"CursorThemeSize\" type=\"int\" value=\"24\"/>
-  </property>
-</channel>" > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
-
-# Create a desktop shortcut for terminal
-mkdir -p ~/Desktop
-echo "[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Terminal
-Comment=Terminal Emulator
-Exec=xfce4-terminal
-Icon=utilities-terminal
-Path=
-Terminal=false
-StartupNotify=false" > ~/Desktop/Terminal.desktop
-
-chmod +x ~/Desktop/Terminal.desktop
-
-# Create a desktop shortcut for Firefox
-echo "[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Firefox
-Comment=Web Browser
-Exec=firefox
-Icon=firefox
-Path=
-Terminal=false
-StartupNotify=false" > ~/Desktop/Firefox.desktop
-
-chmod +x ~/Desktop/Firefox.desktop
-
-# Create a welcome message
-mkdir -p ~/Documents
-echo "Welcome to HackBox!
-
-This is a virtual Linux environment with a graphical desktop.
-You can use this environment to:
-- Browse the web with Firefox
-- Use the terminal
-- Create and edit files
-- Run applications
-
-Enjoy your session!" > ~/Documents/welcome.txt
-
-echo "Startup script completed"' > /app/scripts/startup.sh
+RUN echo '#!/bin/bash' > /app/scripts/startup.sh
+RUN echo '' >> /app/scripts/startup.sh
+RUN echo '# Create VNC config' >> /app/scripts/startup.sh
+RUN echo 'mkdir -p ~/.vnc' >> /app/scripts/startup.sh
+RUN echo '' >> /app/scripts/startup.sh
+RUN echo '# Create xstartup file' >> /app/scripts/startup.sh
+RUN echo 'echo "#!/bin/sh" > ~/.vnc/xstartup' >> /app/scripts/startup.sh
+RUN echo 'echo "unset SESSION_MANAGER" >> ~/.vnc/xstartup' >> /app/scripts/startup.sh
+RUN echo 'echo "unset DBUS_SESSION_BUS_ADDRESS" >> ~/.vnc/xstartup' >> /app/scripts/startup.sh
+RUN echo 'echo "startxfce4 &" >> ~/.vnc/xstartup' >> /app/scripts/startup.sh
+RUN echo '' >> /app/scripts/startup.sh
+RUN echo 'chmod +x ~/.vnc/xstartup' >> /app/scripts/startup.sh
+RUN echo '' >> /app/scripts/startup.sh
+RUN echo '# Set up XFCE theme' >> /app/scripts/startup.sh
+RUN echo 'mkdir -p ~/.config/xfce4/xfconf/xfce-perchannel-xml/' >> /app/scripts/startup.sh
+RUN echo 'echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml' >> /app/scripts/startup.sh
+RUN echo 'echo "<channel name=\"xsettings\" version=\"1.0\">" >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml' >> /app/scripts/startup.sh
+RUN echo 'echo "  <property name=\"Net\" type=\"empty\">" >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml' >> /app/scripts/startup.sh
+RUN echo 'echo "    <property name=\"ThemeName\" type=\"string\" value=\"Adwaita-dark\"/>" >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml' >> /app/scripts/startup.sh
+RUN echo 'echo "    <property name=\"IconThemeName\" type=\"string\" value=\"Adwaita\"/>" >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml' >> /app/scripts/startup.sh
+RUN echo 'echo "  </property>" >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml' >> /app/scripts/startup.sh
+RUN echo 'echo "  <property name=\"Gtk\" type=\"empty\">" >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml' >> /app/scripts/startup.sh
+RUN echo 'echo "    <property name=\"CursorThemeName\" type=\"string\" value=\"Adwaita\"/>" >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml' >> /app/scripts/startup.sh
+RUN echo 'echo "    <property name=\"CursorThemeSize\" type=\"int\" value=\"24\"/>" >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml' >> /app/scripts/startup.sh
+RUN echo 'echo "  </property>" >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml' >> /app/scripts/startup.sh
+RUN echo 'echo "</channel>" >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml' >> /app/scripts/startup.sh
+RUN echo '' >> /app/scripts/startup.sh
+RUN echo '# Create a desktop shortcut for terminal' >> /app/scripts/startup.sh
+RUN echo 'mkdir -p ~/Desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "[Desktop Entry]" > ~/Desktop/Terminal.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Version=1.0" >> ~/Desktop/Terminal.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Type=Application" >> ~/Desktop/Terminal.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Name=Terminal" >> ~/Desktop/Terminal.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Comment=Terminal Emulator" >> ~/Desktop/Terminal.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Exec=xfce4-terminal" >> ~/Desktop/Terminal.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Icon=utilities-terminal" >> ~/Desktop/Terminal.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Path=" >> ~/Desktop/Terminal.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Terminal=false" >> ~/Desktop/Terminal.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "StartupNotify=false" >> ~/Desktop/Terminal.desktop' >> /app/scripts/startup.sh
+RUN echo '' >> /app/scripts/startup.sh
+RUN echo 'chmod +x ~/Desktop/Terminal.desktop' >> /app/scripts/startup.sh
+RUN echo '' >> /app/scripts/startup.sh
+RUN echo '# Create a desktop shortcut for Firefox' >> /app/scripts/startup.sh
+RUN echo 'echo "[Desktop Entry]" > ~/Desktop/Firefox.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Version=1.0" >> ~/Desktop/Firefox.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Type=Application" >> ~/Desktop/Firefox.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Name=Firefox" >> ~/Desktop/Firefox.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Comment=Web Browser" >> ~/Desktop/Firefox.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Exec=firefox" >> ~/Desktop/Firefox.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Icon=firefox" >> ~/Desktop/Firefox.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Path=" >> ~/Desktop/Firefox.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "Terminal=false" >> ~/Desktop/Firefox.desktop' >> /app/scripts/startup.sh
+RUN echo 'echo "StartupNotify=false" >> ~/Desktop/Firefox.desktop' >> /app/scripts/startup.sh
+RUN echo '' >> /app/scripts/startup.sh
+RUN echo 'chmod +x ~/Desktop/Firefox.desktop' >> /app/scripts/startup.sh
+RUN echo '' >> /app/scripts/startup.sh
+RUN echo '# Create a welcome message' >> /app/scripts/startup.sh
+RUN echo 'mkdir -p ~/Documents' >> /app/scripts/startup.sh
+RUN echo 'echo "Welcome to HackBox!" > ~/Documents/welcome.txt' >> /app/scripts/startup.sh
+RUN echo 'echo "" >> ~/Documents/welcome.txt' >> /app/scripts/startup.sh
+RUN echo 'echo "This is a virtual Linux environment with a graphical desktop." >> ~/Documents/welcome.txt' >> /app/scripts/startup.sh
+RUN echo 'echo "You can use this environment to:" >> ~/Documents/welcome.txt' >> /app/scripts/startup.sh
+RUN echo 'echo "- Browse the web with Firefox" >> ~/Documents/welcome.txt' >> /app/scripts/startup.sh
+RUN echo 'echo "- Use the terminal" >> ~/Documents/welcome.txt' >> /app/scripts/startup.sh
+RUN echo 'echo "- Create and edit files" >> ~/Documents/welcome.txt' >> /app/scripts/startup.sh
+RUN echo 'echo "- Run applications" >> ~/Documents/welcome.txt' >> /app/scripts/startup.sh
+RUN echo 'echo "" >> ~/Documents/welcome.txt' >> /app/scripts/startup.sh
+RUN echo 'echo "Enjoy your session!" >> ~/Documents/welcome.txt' >> /app/scripts/startup.sh
+RUN echo '' >> /app/scripts/startup.sh
+RUN echo 'echo "Startup script completed"' >> /app/scripts/startup.sh
 RUN chmod +x /app/scripts/startup.sh
 
 # Set up noVNC
