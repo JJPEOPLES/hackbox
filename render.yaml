@@ -3,8 +3,8 @@ services:
     name: hackbox-web
     env: docker
     # Use the standard Dockerfile (which now includes VNC)
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    dockerfilePath: Dockerfile
+    dockerContext: ./hackbox-web
     envVars:
       - key: NODE_ENV
         value: production
