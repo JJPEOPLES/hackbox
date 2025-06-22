@@ -294,42 +294,7 @@ const Dashboard = () => {
   );
 };
 
-// Helper component for the grid layout
-const Grid = ({ container, item, xs, md, spacing, children, ...props }) => {
-  if (container) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          margin: spacing ? `-${spacing * 4}px` : 0,
-          ...props.sx
-        }}
-        {...props}
-      >
-        {children}
-      </Box>
-    );
-  }
-  
-  if (item) {
-    return (
-      <Box
-        sx={{
-          flexGrow: 0,
-          maxWidth: xs === 12 ? '100%' : md === 8 ? '66.666667%' : md === 4 ? '33.333333%' : '100%',
-          flexBasis: xs === 12 ? '100%' : md === 8 ? '66.666667%' : md === 4 ? '33.333333%' : '100%',
-          padding: spacing ? `${spacing * 4}px` : 0,
-          ...props.sx
-        }}
-        {...props}
-      >
-        {children}
-      </Box>
-    );
-  }
-  
-  return <Box {...props}>{children}</Box>;
-};
+// The custom Grid component was removed as it was causing a naming conflict
+// and wasn't being used in the component
 
 export default Dashboard;
