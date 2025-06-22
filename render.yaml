@@ -2,8 +2,11 @@ services:
   - type: web
     name: hackbox-web
     env: docker
-    # Use your local image
-    image: dev:latest
+    # Use the Docker Hub image
+    image: primecoder447/hackbox:latest
+    # Explicitly tell Render not to use Dockerfile
+    dockerfilePath: ""
+    dockerContext: ""
     envVars:
       - key: NODE_ENV
         value: production
