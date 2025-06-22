@@ -1,0 +1,237 @@
+# Complete Dockerfile with VNC support for Render.com
+
+# Build stage for client
+FROM node:18 AS client-builder
+
+WORKDIR /app/client
+
+# Copy client package.json files
+COPY client/package*.json ./
+
+# Install all client dependencies including dev dependencies
+RUN npm install
+
+# Copy client source code
+COPY client ./
+
+# Build client with increased memory limit for local build
+RUN NODE_OPTIONS="--max_old_space_size=8192" npm run build
+
+# Build stage for server
+FROM node:18 AS server-builder
+
+WORKDIR /app/server
+
+# Copy server package.json files
+COPY server/package*.json ./
+
+# Install build dependencies for node-pty
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && ln -s /usr/bin/python3 /usr/bin/python
+
+# Install all server dependencies
+RUN npm install
+
+# Copy server source code
+COPY server/ ./
+
+# Final stage with VNC support
+FROM ubuntu:22.04
+
+# Avoid prompts from apt
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Node.js
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean
+
+# Install VNC, XFCE, and required tools
+RUN apt-get update && apt-get install -y \
+    xfce4 \
+    xfce4-terminal \
+    xfce4-goodies \
+    tightvncserver \
+    novnc \
+    websockify \
+    net-tools \
+    supervisor \
+    nano \
+    wget \
+    firefox \
+    python3 \
+    python3-pip \
+    make \
+    g++ \
+    && apt-get clean
+
+# Set up VNC password
+RUN mkdir -p /root/.vnc
+RUN echo "hackbox" | vncpasswd -f > /root/.vnc/passwd
+RUN chmod 600 /root/.vnc/passwd
+
+# Create supervisord.conf file directly
+RUN mkdir -p /etc/supervisor/conf.d/
+RUN cat > /etc/supervisor/conf.d/supervisord.conf << 'EOF'
+[supervisord]
+nodaemon=true
+loglevel=info
+user=root
+
+[program:startup]
+command=/app/scripts/startup.sh
+autostart=true
+autorestart=false
+startsecs=0
+priority=100
+
+[program:vncserver]
+command=/usr/bin/vncserver :1 -geometry 1280x800 -depth 24 -localhost no
+autostart=true
+autorestart=true
+user=root
+environment=HOME="/root",USER="root"
+
+[program:novnc]
+command=/usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080
+autostart=true
+autorestart=true
+priority=200
+
+[program:node-server]
+command=node /app/server/server.js
+directory=/app
+autostart=true
+autorestart=true
+priority=300
+environment=NODE_ENV="production",PORT="5000"
+EOF
+
+# Create startup script directly
+RUN mkdir -p /app/scripts
+RUN cat > /app/scripts/startup.sh << 'EOF'
+#!/bin/bash
+
+# Create VNC config
+mkdir -p ~/.vnc
+
+# Create xstartup file
+cat > ~/.vnc/xstartup << XSTART
+#!/bin/sh
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+startxfce4 &
+XSTART
+
+chmod +x ~/.vnc/xstartup
+
+# Set up XFCE theme
+mkdir -p ~/.config/xfce4/xfconf/xfce-perchannel-xml/
+cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << XSETTINGS
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xsettings" version="1.0">
+  <property name="Net" type="empty">
+    <property name="ThemeName" type="string" value="Adwaita-dark"/>
+    <property name="IconThemeName" type="string" value="Adwaita"/>
+  </property>
+  <property name="Gtk" type="empty">
+    <property name="CursorThemeName" type="string" value="Adwaita"/>
+    <property name="CursorThemeSize" type="int" value="24"/>
+  </property>
+</channel>
+XSETTINGS
+
+# Create a desktop shortcut for terminal
+mkdir -p ~/Desktop
+cat > ~/Desktop/Terminal.desktop << TERMINAL
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Terminal
+Comment=Terminal Emulator
+Exec=xfce4-terminal
+Icon=utilities-terminal
+Path=
+Terminal=false
+StartupNotify=false
+TERMINAL
+
+chmod +x ~/Desktop/Terminal.desktop
+
+# Create a desktop shortcut for Firefox
+cat > ~/Desktop/Firefox.desktop << FIREFOX
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Firefox
+Comment=Web Browser
+Exec=firefox
+Icon=firefox
+Path=
+Terminal=false
+StartupNotify=false
+FIREFOX
+
+chmod +x ~/Desktop/Firefox.desktop
+
+# Create a welcome message
+mkdir -p ~/Documents
+cat > ~/Documents/welcome.txt << WELCOME
+Welcome to HackBox!
+
+This is a virtual Linux environment with a graphical desktop.
+You can use this environment to:
+- Browse the web with Firefox
+- Use the terminal
+- Create and edit files
+- Run applications
+
+Enjoy your session!
+WELCOME
+
+echo "Startup script completed"
+EOF
+
+RUN chmod +x /app/scripts/startup.sh
+
+# Set up noVNC
+RUN mkdir -p /app/novnc
+RUN ln -s /usr/share/novnc /app/novnc/
+RUN ln -s /usr/lib/novnc/utils /app/novnc/utils
+
+WORKDIR /app
+
+# Copy server from server-builder stage
+COPY --from=server-builder /app/server ./server
+
+# Copy client build from client-builder stage
+COPY --from=client-builder /app/client/build ./client/build
+
+# Verify directories and files exist
+RUN echo "Checking server directory:" && \
+    ls -la server/ && \
+    echo "Checking for server.js:" && \
+    ls -la server/server.js && \
+    echo "Checking client build:" && \
+    ls -la client/build || echo "Build directory not found!"
+
+# Update the VNC endpoint in server.js
+RUN sed -i 's/available: false/available: true/g' /app/server/server.js
+RUN sed -i 's/message: .*/message: "GUI access is available via VNC",/g' /app/server/server.js
+RUN sed -i 's/note: .*/url: "\/novnc\/vnc.html?host=" + req.headers.host + "\&port=6080",\n      password: "hackbox"/g' /app/server/server.js
+
+# Expose ports
+EXPOSE 5000 6080 5901 10000
+
+# Set NODE_ENV to production
+ENV NODE_ENV=production
+ENV VNC_ENABLED=true
+
+# Start services
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

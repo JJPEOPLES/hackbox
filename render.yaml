@@ -2,8 +2,8 @@ services:
   - type: web
     name: hackbox-web
     env: docker
-    # Use the Render-specific Dockerfile that includes all config files
-    dockerfilePath: Dockerfile.render
+    # Use the complete Dockerfile with everything included
+    dockerfilePath: ./Dockerfile.complete
     dockerContext: .
     envVars:
       - key: NODE_ENV
