@@ -81,11 +81,11 @@ COPY server/ ./
 FROM base
 
 # Set up supervisor
-COPY hackbox-web/vm/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY vm/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Create startup script
 RUN mkdir -p /app/scripts
-COPY hackbox-web/vm/startup.sh /app/scripts/
+COPY vm/startup.sh /app/scripts/
 RUN chmod +x /app/scripts/startup.sh
 
 # Set up noVNC
