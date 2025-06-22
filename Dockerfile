@@ -12,8 +12,8 @@ RUN npm install
 # Copy client source code
 COPY client ./
 
-# Build client with memory limit adjusted for 512MB environment
-RUN NODE_OPTIONS="--max_old_space_size=384" npm run build
+# Build client with increased memory limit for local build
+RUN NODE_OPTIONS="--max_old_space_size=8192" npm run build
 
 # Build stage for server
 FROM node:18 AS server-builder
