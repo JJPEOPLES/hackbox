@@ -2,15 +2,25 @@ services:
   - type: web
     name: hackbox-web
     env: docker
-    # Use the Docker Hub image
-    image: primecoder447/hackbox:latest
-    # Explicitly tell Render not to use Dockerfile
-    dockerfilePath: ""
-    dockerContext: ""
+    # Use the standard Dockerfile (which now includes VNC)
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
+      - key: VNC_ENABLED
+        value: true
+    # Open ports for VNC
+    ports:
+      - port: 5000
+        name: http
+      - port: 6080
+        name: novnc
+      - port: 5901
+        name: vnc
+      - port: 10000
+        name: socket
         value: 5000
       - key: VNC_ENABLED
         value: true

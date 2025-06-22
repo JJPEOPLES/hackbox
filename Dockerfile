@@ -1,3 +1,44 @@
+# This Dockerfile is a wrapper that builds from Dockerfile.vnc
+# It allows us to use the standard Dockerfile name while building the VNC-enabled image
+
+# Simply use the Dockerfile.vnc content
+FROM ubuntu:22.04 AS base
+
+# Avoid prompts from apt
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Node.js
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean
+
+# Install VNC, XFCE, and required tools
+RUN apt-get update && apt-get install -y \
+    xfce4 \
+    xfce4-terminal \
+    xfce4-goodies \
+    tightvncserver \
+    novnc \
+    websockify \
+    net-tools \
+    supervisor \
+    nano \
+    wget \
+    firefox \
+    python3 \
+    python3-pip \
+    make \
+    g++ \
+    && apt-get clean
+
+# Set up VNC password
+RUN mkdir -p /root/.vnc
+RUN echo "hackbox" | vncpasswd -f > /root/.vnc/passwd
+RUN chmod 600 /root/.vnc/passwd
+
 # Build stage for client
 FROM node:18 AS client-builder
 
@@ -36,8 +77,21 @@ RUN npm install
 # Copy server source code
 COPY server/ ./
 
-# Final stage
-FROM node:18-slim
+# Final stage with VNC support
+FROM base
+
+# Set up supervisor
+COPY hackbox-web/vm/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Create startup script
+RUN mkdir -p /app/scripts
+COPY hackbox-web/vm/startup.sh /app/scripts/
+RUN chmod +x /app/scripts/startup.sh
+
+# Set up noVNC
+RUN mkdir -p /app/novnc
+RUN ln -s /usr/share/novnc /app/novnc/
+RUN ln -s /usr/lib/novnc/utils /app/novnc/utils
 
 WORKDIR /app
 
@@ -55,14 +109,17 @@ RUN echo "Checking server directory:" && \
     echo "Checking client build:" && \
     ls -la client/build || echo "Build directory not found!"
 
-# Expose port for server
-# Render.com sets the PORT environment variable automatically
-EXPOSE 5000
-EXPOSE 10000
+# Update the VNC endpoint in server.js
+RUN sed -i 's/available: false/available: true/g' /app/server/server.js
+RUN sed -i 's/message: .*/message: "GUI access is available via VNC",/g' /app/server/server.js
+RUN sed -i 's/note: .*/url: "\/novnc\/vnc.html?host=" + req.headers.host + "\&port=6080",\n      password: "hackbox"/g' /app/server/server.js
+
+# Expose ports
+EXPOSE 5000 6080 5901 10000
 
 # Set NODE_ENV to production
 ENV NODE_ENV=production
+ENV VNC_ENABLED=true
 
-# Start server
-# The server will use the PORT environment variable provided by Render
-CMD ["node", "server/server.js"]
+# Start services
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
