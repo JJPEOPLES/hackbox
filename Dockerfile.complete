@@ -98,7 +98,7 @@ RUN echo 'startsecs=0' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'priority=100' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '[program:vncserver]' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'command=bash -c "pkill Xtigervnc || true; pkill Xtightvnc || true; pkill Xvnc || true; rm -f /tmp/.X1-lock /tmp/.X11-unix/X1 || true; /usr/bin/vncserver :1 -geometry 1280x800 -depth 24 -localhost no"' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=bash -c "pkill Xtigervnc || true; pkill Xtightvnc || true; pkill Xvnc || true; rm -f /tmp/.X1-lock /tmp/.X11-unix/X1 || true; /usr/bin/vncserver :1 -geometry 1280x800 -depth 24 -localhost no -rfbport 5901"' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autorestart=unexpected' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf
@@ -110,7 +110,7 @@ RUN echo 'killasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'exitcodes=0,2' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '[program:novnc]' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'command=/usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=/usr/share/novnc/utils/launch.sh --vnc 127.0.0.1:5901 --listen 6080 --web /usr/share/novnc' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'priority=200' >> /etc/supervisor/conf.d/supervisord.conf
@@ -215,6 +215,11 @@ WORKDIR /app
 # Copy server from server-builder stage
 COPY --from=server-builder /app/server ./server
 
+# Install http-proxy package
+WORKDIR /app/server
+RUN npm install http-proxy@1.18.1
+WORKDIR /app
+
 # Copy client build from client-builder stage
 COPY --from=client-builder /app/client/build ./client/build
 
@@ -229,7 +234,7 @@ RUN echo "Checking server directory:" && \
 # Update the VNC endpoint in server.js
 RUN sed -i 's/available: false/available: true/g' /app/server/server.js
 RUN sed -i 's/message: .*/message: "GUI access is available via VNC",/g' /app/server/server.js
-RUN sed -i 's/note: .*/url: "\/novnc\/vnc.html?host=" + req.headers.host + "\&port=6080",\n      password: "hackbox"/g' /app/server/server.js
+RUN sed -i 's/note: .*/url: "\/novnc\/vnc.html?resize=scale&autoconnect=true&port=6080",\n      password: "hackbox"/g' /app/server/server.js
 
 # Expose ports
 EXPOSE 5000 6080 5901 10000

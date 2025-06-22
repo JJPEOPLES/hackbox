@@ -25,6 +25,34 @@ app.use(express.json());
 // Always serve static files in Docker environment
 app.use(express.static(path.join(__dirname, '../client/build')));
 
+// Serve noVNC files
+app.use('/novnc', express.static('/usr/share/novnc'));
+
+// Add a proxy for WebSocket connections to noVNC
+const httpProxy = require('http-proxy');
+const proxy = httpProxy.createProxyServer({});
+
+// Handle WebSocket proxy errors
+proxy.on('error', function(err, req, res) {
+  console.error('Proxy error:', err);
+  if (res.writeHead) {
+    res.writeHead(500, { 'Content-Type': 'text/plain' });
+    res.end('Proxy error');
+  }
+});
+
+// Add the proxy middleware
+app.use('/websockify', (req, res) => {
+  proxy.web(req, res, { target: 'http://localhost:6080' });
+});
+
+// Handle WebSocket upgrade
+server.on('upgrade', (req, socket, head) => {
+  if (req.url.startsWith('/websockify')) {
+    proxy.ws(req, socket, head, { target: 'ws://localhost:6080' });
+  }
+});
+
 // Add a specific route for the root path
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
@@ -98,11 +126,11 @@ app.get('/api/vm/vnc', async (req, res) => {
     const vncEnabled = process.env.VNC_ENABLED === 'true';
     
     if (vncEnabled) {
-      // Return VNC connection details
+      // Return VNC connection details with fixed URL that doesn't use host header
       res.json({
         available: true,
         message: 'GUI access is available via VNC',
-        url: `/novnc/vnc.html?host=${req.headers.host}&port=6080`,
+        url: `/novnc/vnc.html?resize=scale&autoconnect=true&port=6080`,
         password: 'hackbox'
       });
     } else {
