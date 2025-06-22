@@ -6,8 +6,8 @@ WORKDIR /app/client
 # Copy client package.json files
 COPY client/package*.json ./
 
-# Install client dependencies with production flag to reduce size
-RUN npm install --only=production
+# Install all client dependencies including dev dependencies
+RUN npm install
 
 # Copy client source code
 COPY client ./
@@ -30,8 +30,8 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && ln -s /usr/bin/python3 /usr/bin/python
 
-# Install server dependencies with production flag
-RUN npm install --only=production
+# Install all server dependencies
+RUN npm install
 
 # Final stage
 FROM node:18-slim
