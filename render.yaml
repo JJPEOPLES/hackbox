@@ -2,8 +2,8 @@ services:
   - type: web
     name: hackbox-web
     env: docker
-    # Use the complete Dockerfile with everything included
-    dockerfilePath: ./Dockerfile.complete
+    # Use the VNC Dockerfile with inline configuration
+    dockerfilePath: ./Dockerfile.vnc
     dockerContext: .
     envVars:
       - key: NODE_ENV
