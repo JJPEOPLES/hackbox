@@ -12,3 +12,13 @@ services:
         value: production
       - key: PORT
         value: 5000
+      - key: VNC_ENABLED
+        value: true
+    # Open ports for VNC
+    ports:
+      - port: 5000
+        name: http
+      - port: 6080
+        name: novnc
+      - port: 5901
+        name: vnc

@@ -131,33 +131,24 @@ const VncViewer = () => {
     </Box>
   );
 
-  // Render a placeholder for the VNC viewer
-  // In a real implementation, you would integrate with a VNC client library
+  // Render the VNC viewer using an iframe
   const renderVncViewer = () => (
     <Box sx={{ 
-      display: 'flex', 
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
       height: '100%',
-      p: 3
+      width: '100%',
+      overflow: 'hidden'
     }}>
-      <Typography variant="h5" gutterBottom>
-        GUI Access Coming Soon
-      </Typography>
-      <Typography variant="body1" paragraph align="center">
-        The GUI interface is under development and will be available soon.
-      </Typography>
-      <Typography variant="body1" paragraph align="center">
-        In the meantime, you can use the terminal to interact with the VM.
-      </Typography>
-      <Button 
-        variant="contained" 
-        color="primary"
-        onClick={() => window.location.href = '/terminal'}
-      >
-        Go to Terminal
-      </Button>
+      <iframe
+        src={vncUrl}
+        style={{
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          overflow: 'hidden'
+        }}
+        title="VNC Viewer"
+        allow="fullscreen"
+      />
     </Box>
   );
 

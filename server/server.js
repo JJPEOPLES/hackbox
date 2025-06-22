@@ -94,13 +94,25 @@ app.post('/api/vm/stop', async (req, res) => {
 // VNC access endpoint
 app.get('/api/vm/vnc', async (req, res) => {
   try {
-    // For now, we'll return a placeholder response
-    // In a real implementation, you would set up a VNC server and return actual connection details
-    res.json({
-      available: false,
-      message: 'GUI access is not currently available on this deployment',
-      note: 'GUI access requires additional configuration on the server'
-    });
+    // Check if we're running in the VNC-enabled container
+    const vncEnabled = process.env.VNC_ENABLED === 'true';
+    
+    if (vncEnabled) {
+      // Return VNC connection details
+      res.json({
+        available: true,
+        message: 'GUI access is available via VNC',
+        url: `/novnc/vnc.html?host=${req.headers.host}&port=6080`,
+        password: 'hackbox'
+      });
+    } else {
+      // Return placeholder response for non-VNC deployments
+      res.json({
+        available: false,
+        message: 'GUI access is not currently available on this deployment',
+        note: 'GUI access requires the VNC-enabled container'
+      });
+    }
   } catch (error) {
     console.error('Error getting VNC details:', error);
     res.status(500).json({ error: 'Failed to get VNC details' });
