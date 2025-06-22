@@ -18,7 +18,11 @@ COPY client ./client
 RUN cd client && npm run build
 
 # Expose port for server
+# Render.com sets the PORT environment variable automatically
+# We'll expose both 5000 (default) and 10000 (common Render port)
 EXPOSE 5000
+EXPOSE 10000
 
 # Start server
+# The server will use the PORT environment variable provided by Render
 CMD ["node", "server/server.js"]
