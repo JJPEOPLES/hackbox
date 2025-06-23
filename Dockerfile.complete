@@ -62,6 +62,7 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     nano \
     wget \
+    curl \
     firefox \
     python3 \
     python3-pip \
@@ -74,7 +75,46 @@ RUN apt-get update && apt-get install -y \
     x11-utils \
     fonts-dejavu \
     fonts-liberation \
+    tomcat9 \
+    tomcat9-admin \
+    tomcat9-common \
+    tomcat9-user \
     && apt-get clean
+
+# Install Guacamole (web-based RDP client)
+RUN apt-get update && apt-get install -y \
+    libcairo2-dev \
+    libjpeg-turbo8-dev \
+    libpng-dev \
+    libossp-uuid-dev \
+    libfreerdp-dev \
+    libpango1.0-dev \
+    libssh2-1-dev \
+    libtelnet-dev \
+    libvncserver-dev \
+    libpulse-dev \
+    libssl-dev \
+    libvorbis-dev \
+    libwebp-dev \
+    && apt-get clean
+
+# Download and install Guacamole server
+RUN mkdir -p /opt/guacamole && \
+    cd /opt && \
+    wget -q "https://downloads.apache.org/guacamole/1.4.0/source/guacamole-server-1.4.0.tar.gz" && \
+    tar -xzf guacamole-server-1.4.0.tar.gz && \
+    cd guacamole-server-1.4.0 && \
+    ./configure --with-init-dir=/etc/init.d && \
+    make && \
+    make install && \
+    ldconfig && \
+    cd .. && \
+    rm -rf guacamole-server-1.4.0 guacamole-server-1.4.0.tar.gz
+
+# Download and install Guacamole client
+RUN mkdir -p /var/lib/tomcat9/webapps && \
+    wget -q "https://downloads.apache.org/guacamole/1.4.0/binary/guacamole-1.4.0.war" -O /var/lib/tomcat9/webapps/guacamole.war && \
+    mkdir -p /etc/guacamole
 
 # Configure xrdp
 RUN sed -i 's/port=3389/port=3389/g' /etc/xrdp/xrdp.ini
@@ -86,6 +126,33 @@ RUN sed -i 's/allow_channels=true/allow_channels=false/g' /etc/xrdp/xrdp.ini
 RUN sed -i 's/bitmap_compression=true/bitmap_compression=true/g' /etc/xrdp/xrdp.ini
 RUN sed -i 's/max_idle_time=0/max_idle_time=0/g' /etc/xrdp/xrdp.ini
 RUN sed -i 's/black=000000/black=000000/g' /etc/xrdp/xrdp.ini
+
+# Configure Guacamole
+RUN mkdir -p /etc/guacamole/extensions
+RUN mkdir -p /etc/guacamole/lib
+RUN echo "guacd-hostname: localhost" > /etc/guacamole/guacamole.properties
+RUN echo "guacd-port: 4822" >> /etc/guacamole/guacamole.properties
+RUN echo "user-mapping: /etc/guacamole/user-mapping.xml" >> /etc/guacamole/guacamole.properties
+RUN echo "basic-user-mapping: /etc/guacamole/user-mapping.xml" >> /etc/guacamole/guacamole.properties
+
+# Create user mapping for Guacamole
+RUN echo "<user-mapping>" > /etc/guacamole/user-mapping.xml
+RUN echo "  <authorize username=\"hackbox\" password=\"hackbox\">" >> /etc/guacamole/user-mapping.xml
+RUN echo "    <connection name=\"HackBox Desktop\">" >> /etc/guacamole/user-mapping.xml
+RUN echo "      <protocol>rdp</protocol>" >> /etc/guacamole/user-mapping.xml
+RUN echo "      <param name=\"hostname\">localhost</param>" >> /etc/guacamole/user-mapping.xml
+RUN echo "      <param name=\"port\">3389</param>" >> /etc/guacamole/user-mapping.xml
+RUN echo "      <param name=\"username\">hackbox</param>" >> /etc/guacamole/user-mapping.xml
+RUN echo "      <param name=\"password\">hackbox</param>" >> /etc/guacamole/user-mapping.xml
+RUN echo "      <param name=\"ignore-cert\">true</param>" >> /etc/guacamole/user-mapping.xml
+RUN echo "      <param name=\"resize-method\">display-update</param>" >> /etc/guacamole/user-mapping.xml
+RUN echo "      <param name=\"color-depth\">24</param>" >> /etc/guacamole/user-mapping.xml
+RUN echo "    </connection>" >> /etc/guacamole/user-mapping.xml
+RUN echo "  </authorize>" >> /etc/guacamole/user-mapping.xml
+RUN echo "</user-mapping>" >> /etc/guacamole/user-mapping.xml
+
+# Create symbolic link for Guacamole configuration
+RUN ln -s /etc/guacamole /usr/share/tomcat9/.guacamole
 
 # Set up xrdp user
 RUN useradd -m -s /bin/bash hackbox
@@ -154,28 +221,68 @@ RUN echo 'startretries=5' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'stopasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'killasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '[program:guacd]' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=/usr/local/sbin/guacd -f' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stdout_logfile=/var/log/guacd.log' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stderr_logfile=/var/log/guacd-err.log' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startsecs=10' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startretries=5' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stopasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'killasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '[program:tomcat]' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=bash -c "mkdir -p /var/lib/tomcat9/logs && chown -R root:root /var/lib/tomcat9 && /usr/share/tomcat9/bin/catalina.sh run"' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stdout_logfile=/var/log/tomcat.log' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stderr_logfile=/var/log/tomcat-err.log' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startsecs=10' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startretries=5' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stopasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'killasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '[program:node-server]' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'command=node /app/server/server.js' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'directory=/app' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'priority=300' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'environment=NODE_ENV="production",PORT="5000"' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'priority=10' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'environment=NODE_ENV="production",PORT="5000",GUI_ENABLED="true"' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startsecs=5' >> /etc/supervisor/conf.d/supervisord.conf
 
 # Create startup script directly
 RUN mkdir -p /app/scripts
 RUN echo '#!/bin/bash' > /app/scripts/startup.sh
+RUN echo 'echo "Starting HackBox services..."' >> /app/scripts/startup.sh
+RUN echo 'echo "Ensuring Node.js server is running for Render.com health checks"' >> /app/scripts/startup.sh
+RUN echo 'node /app/server/server.js &' >> /app/scripts/startup.sh
+RUN echo 'echo "Node.js server started in background"' >> /app/scripts/startup.sh
+RUN chmod +x /app/scripts/startup.sh
+
+# Create health check script for Render.com
+RUN echo '#!/bin/bash' > /app/scripts/health-check.sh
+RUN echo 'curl -s http://localhost:5000/health || exit 1' >> /app/scripts/health-check.sh
+RUN chmod +x /app/scripts/health-check.sh
 
 # Create RDP startup script
 RUN echo '#!/bin/bash' > /app/scripts/start-rdp.sh
-RUN echo 'echo "Configuring XRDP for Render.com..."' >> /app/scripts/start-rdp.sh
+RUN echo 'echo "Configuring XRDP and Guacamole for Render.com..."' >> /app/scripts/start-rdp.sh
 RUN echo 'mkdir -p /var/run/xrdp' >> /app/scripts/start-rdp.sh
 RUN echo 'mkdir -p /var/log/xrdp' >> /app/scripts/start-rdp.sh
 RUN echo 'touch /var/log/xrdp/xrdp.log' >> /app/scripts/start-rdp.sh
 RUN echo 'touch /var/log/xrdp/xrdp-sesman.log' >> /app/scripts/start-rdp.sh
 RUN echo 'chown -R root:root /var/run/xrdp' >> /app/scripts/start-rdp.sh
 RUN echo 'chown -R root:root /var/log/xrdp' >> /app/scripts/start-rdp.sh
-RUN echo 'echo "XRDP configuration complete"' >> /app/scripts/start-rdp.sh
+RUN echo 'mkdir -p /var/lib/tomcat9/logs' >> /app/scripts/start-rdp.sh
+RUN echo 'chown -R root:root /var/lib/tomcat9' >> /app/scripts/start-rdp.sh
+RUN echo 'chmod -R 755 /var/lib/tomcat9' >> /app/scripts/start-rdp.sh
+RUN echo 'mkdir -p /usr/share/tomcat9/.guacamole' >> /app/scripts/start-rdp.sh
+RUN echo 'ln -sf /etc/guacamole /usr/share/tomcat9/.guacamole' >> /app/scripts/start-rdp.sh
+RUN echo 'echo "XRDP and Guacamole configuration complete"' >> /app/scripts/start-rdp.sh
 RUN chmod +x /app/scripts/start-rdp.sh
 
 # Create VNC startup script
@@ -342,9 +449,9 @@ WORKDIR /app
 # Copy server from server-builder stage
 COPY --from=server-builder /app/server ./server
 
-# Install http-proxy package
+# Install proxy packages
 WORKDIR /app/server
-RUN npm install http-proxy@1.18.1
+RUN npm install http-proxy@1.18.1 http-proxy-middleware@2.0.6
 WORKDIR /app
 
 # Copy client build from client-builder stage
@@ -364,12 +471,13 @@ RUN sed -i 's/message: .*/message: "GUI access is available via RDP",/g' /app/se
 RUN sed -i 's/note: .*/note: "Connect using any RDP client to " + req.headers.host + " on port 3389\\nUsername: hackbox\\nPassword: hackbox"/g' /app/server/server.js
 
 # Expose ports
-EXPOSE 5000 3389 10000
+EXPOSE 5000 3389 8080 10000
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV GUI_ENABLED=true
 ENV RDP_PORT=3389
+ENV PORT=5000
 
-# Start services
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Start the Node.js server first, then supervisord
+CMD ["bash", "-c", "node /app/server/server.js & sleep 2 && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]

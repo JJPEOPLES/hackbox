@@ -25,8 +25,27 @@ app.use(express.json());
 // Always serve static files in Docker environment
 app.use(express.static(path.join(__dirname, '../client/build')));
 
-// Serve noVNC files
-app.use('/novnc', express.static('/usr/share/novnc'));
+// Create proxy for Guacamole
+const { createProxyMiddleware } = require('http-proxy-middleware');
+
+// Configure the proxy middleware
+const guacamoleProxy = createProxyMiddleware({
+  target: 'http://localhost:8080',
+  changeOrigin: true,
+  ws: true,
+  pathRewrite: {
+    '^/guacamole': '/guacamole'
+  },
+  onError: (err, req, res) => {
+    console.error('Proxy error:', err);
+    res.writeHead(500, { 'Content-Type': 'text/plain' });
+    res.end('Proxy error connecting to Guacamole');
+  },
+  logLevel: 'debug'
+});
+
+// Add proxy for Guacamole
+app.use('/guacamole', guacamoleProxy);
 
 // Add a proxy for WebSocket connections to noVNC
 const httpProxy = require('http-proxy');
@@ -53,11 +72,6 @@ server.on('upgrade', (req, socket, head) => {
   }
 });
 
-// Add a specific route for the root path
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
-});
-
 // API routes
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -68,6 +82,21 @@ app.get('/api/health', (req, res) => {
     clientBuildExists: require('fs').existsSync(path.join(__dirname, '../client/build')),
     clientIndexExists: require('fs').existsSync(path.join(__dirname, '../client/build/index.html'))
   });
+});
+
+// Simple health check endpoint for Render.com
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// Root path - handle both Render health checks and normal requests
+app.get('/', (req, res) => {
+  if (req.headers['user-agent'] && req.headers['user-agent'].includes('Render')) {
+    // If it's Render's health check, respond immediately
+    return res.status(200).send('OK');
+  }
+  // Otherwise serve the React app
+  res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
 });
 
 // VM status endpoint
@@ -119,29 +148,33 @@ app.post('/api/vm/stop', async (req, res) => {
   }
 });
 
-// GUI access endpoint (RDP)
+// GUI access endpoint (Web-based RDP via Guacamole)
 app.get('/api/vm/vnc', async (req, res) => {
   try {
     // Check if we're running in the GUI-enabled container
     const guiEnabled = process.env.GUI_ENABLED === 'true';
     
     if (guiEnabled) {
-      // Return RDP connection details
+      // Return Guacamole web-based RDP connection details
+      const protocol = req.headers['x-forwarded-proto'] || 'http';
+      const host = req.headers.host;
+      const guacamoleUrl = `${protocol}://${host}/guacamole/`;
+      
       res.json({
         available: true,
-        message: 'GUI access is available via RDP',
-        note: `Connect using any RDP client to ${req.headers.host} on port 3389\nUsername: hackbox\nPassword: hackbox`,
-        protocol: 'rdp',
+        message: 'GUI access is available via web-based RDP',
+        url: guacamoleUrl,
+        note: `Access the desktop through your browser at ${guacamoleUrl}\nUsername: hackbox\nPassword: hackbox`,
+        protocol: 'http',
         username: 'hackbox',
-        password: 'hackbox',
-        port: 3389
+        password: 'hackbox'
       });
     } else {
       // Return placeholder response for non-GUI deployments
       res.json({
         available: false,
         message: 'GUI access is not currently available on this deployment',
-        note: 'GUI access requires the RDP-enabled container'
+        note: 'GUI access requires the GUI-enabled container'
       });
     }
   } catch (error) {
