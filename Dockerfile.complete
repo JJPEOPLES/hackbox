@@ -52,12 +52,13 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && apt-get clean
 
-# Install XFCE, xrdp, and required tools
+# Install XFCE, xrdp, SSH, and required tools
 RUN apt-get update && apt-get install -y \
     xfce4 \
     xfce4-terminal \
     xfce4-goodies \
     xrdp \
+    openssh-server \
     net-tools \
     supervisor \
     nano \
@@ -154,10 +155,18 @@ RUN echo "</user-mapping>" >> /etc/guacamole/user-mapping.xml
 # Create symbolic link for Guacamole configuration
 RUN ln -s /etc/guacamole /usr/share/tomcat9/.guacamole
 
-# Set up xrdp user
+# Set up user for xrdp and SSH
 RUN useradd -m -s /bin/bash hackbox
 RUN echo "hackbox:hackbox" | chpasswd
 RUN usermod -aG sudo hackbox
+
+# Configure SSH
+RUN mkdir -p /var/run/sshd
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+RUN sed -i 's/#Port 22/Port 2222/' /etc/ssh/sshd_config
+# SSH login fix. Otherwise user is kicked off after login
+RUN sed -i 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' /etc/pam.d/sshd
 
 # Configure XFCE as the default session
 RUN echo "xfce4-session" > /etc/skel/.Xclients
@@ -237,6 +246,18 @@ RUN echo '[program:tomcat]' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'command=bash -c "mkdir -p /var/lib/tomcat9/logs && chown -R root:root /var/lib/tomcat9 && /usr/share/tomcat9/bin/catalina.sh run"' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'stdout_logfile=/var/log/tomcat.log' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'stderr_logfile=/var/log/tomcat-err.log' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startsecs=10' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'startretries=5' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stopasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'killasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo '[program:sshd]' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=/usr/sbin/sshd -D -p 2222' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stdout_logfile=/var/log/sshd.log' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'stderr_logfile=/var/log/sshd-err.log' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf
@@ -465,13 +486,11 @@ RUN echo "Checking server directory:" && \
     echo "Checking client build:" && \
     ls -la client/build || echo "Build directory not found!"
 
-# Update the GUI access endpoint in server.js for RDP
-RUN sed -i 's/available: false/available: true/g' /app/server/server.js
-RUN sed -i 's/message: .*/message: "GUI access is available via RDP",/g' /app/server/server.js
-RUN sed -i 's/note: .*/note: "Connect using any RDP client to " + req.headers.host + " on port 3389\\nUsername: hackbox\\nPassword: hackbox"/g' /app/server/server.js
+# Note: The server.js file has been directly updated with custom domain information
+# for both GUI access and SSH access endpoints
 
 # Expose ports
-EXPOSE 5000 3389 8080 10000
+EXPOSE 5000 3389 8080 2222 10000
 
 # Set environment variables
 ENV NODE_ENV=production

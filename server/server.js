@@ -155,9 +155,9 @@ app.get('/api/vm/vnc', async (req, res) => {
     const guiEnabled = process.env.GUI_ENABLED === 'true';
     
     if (guiEnabled) {
-      // Return Guacamole web-based RDP connection details
-      const protocol = req.headers['x-forwarded-proto'] || 'http';
-      const host = req.headers.host;
+      // Use the custom domain instead of the request host
+      const protocol = 'https';
+      const host = 'hackbox.k2lang.org';
       const guacamoleUrl = `${protocol}://${host}/guacamole/`;
       
       res.json({
@@ -165,7 +165,7 @@ app.get('/api/vm/vnc', async (req, res) => {
         message: 'GUI access is available via web-based RDP',
         url: guacamoleUrl,
         note: `Access the desktop through your browser at ${guacamoleUrl}\nUsername: hackbox\nPassword: hackbox`,
-        protocol: 'http',
+        protocol: 'https',
         username: 'hackbox',
         password: 'hackbox'
       });
@@ -180,6 +180,27 @@ app.get('/api/vm/vnc', async (req, res) => {
   } catch (error) {
     console.error('Error getting GUI access details:', error);
     res.status(500).json({ error: 'Failed to get GUI access details' });
+  }
+});
+
+// SSH access endpoint
+app.get('/api/vm/ssh', async (req, res) => {
+  try {
+    // Use the custom domain instead of the request host
+    const host = 'hackbox.k2lang.org';
+    
+    res.json({
+      available: true,
+      message: 'SSH access is available',
+      note: `Connect using SSH to ${host} on port 2222\nUsername: hackbox\nPassword: hackbox\n\nExample command: ssh hackbox@${host} -p 2222`,
+      host: host,
+      port: 2222,
+      username: 'hackbox',
+      password: 'hackbox'
+    });
+  } catch (error) {
+    console.error('Error getting SSH details:', error);
+    res.status(500).json({ error: 'Failed to get SSH details' });
   }
 });
 

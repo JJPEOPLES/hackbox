@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Box, Paper, Button, CircularProgress, Alert, Tabs, Tab } from '@mui/material';
-import { Computer, Refresh, Fullscreen, FullscreenExit } from '@mui/icons-material';
+import { Container, Typography, Box, Paper, Button, CircularProgress, Alert, Tabs, Tab, Card, CardContent, TextField } from '@mui/material';
+import { Computer, Refresh, Fullscreen, FullscreenExit, Terminal } from '@mui/icons-material';
 import axios from 'axios';
 import config from '../../config';
 
@@ -11,6 +11,8 @@ const VncViewer = () => {
   const [vmStatus, setVmStatus] = useState('loading');
   const [vncUrl, setVncUrl] = useState('');
   const [vncPassword, setVncPassword] = useState('');
+  const [sshInfo, setSshInfo] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
     // Check VM status and get VNC details
@@ -28,6 +30,15 @@ const VncViewer = () => {
           const vncResponse = await axios.get(`${config.apiUrl}/api/vm/vnc`);
           setVncUrl(vncResponse.data.url);
           setVncPassword(vncResponse.data.password);
+          
+          // Get SSH details
+          try {
+            const sshResponse = await axios.get(`${config.apiUrl}/api/vm/ssh`);
+            setSshInfo(sshResponse.data);
+          } catch (sshErr) {
+            console.error('Error getting SSH details:', sshErr);
+            // Don't set an error, SSH is optional
+          }
         } catch (err) {
           console.error('Error getting VNC details:', err);
           setError('VNC is not available. Please try again later.');
@@ -58,6 +69,15 @@ const VncViewer = () => {
           const vncResponse = await axios.get(`${config.apiUrl}/api/vm/vnc`);
           setVncUrl(vncResponse.data.url);
           setVncPassword(vncResponse.data.password);
+          
+          // Get SSH details
+          try {
+            const sshResponse = await axios.get(`${config.apiUrl}/api/vm/ssh`);
+            setSshInfo(sshResponse.data);
+          } catch (sshErr) {
+            console.error('Error getting SSH details:', sshErr);
+            // Don't set an error, SSH is optional
+          }
         } catch (err) {
           console.error('Error getting VNC details:', err);
           setError('VNC is not available. Please try again later.');
@@ -100,6 +120,10 @@ const VncViewer = () => {
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
+  };
+  
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
   };
 
   // Render a message if VNC is not available
@@ -149,6 +173,112 @@ const VncViewer = () => {
         title="VNC Viewer"
         allow="fullscreen"
       />
+    </Box>
+  );
+  
+  // Render SSH connection information
+  const renderSshInfo = () => (
+    <Box sx={{ 
+      height: '100%',
+      width: '100%',
+      overflow: 'auto',
+      p: 3
+    }}>
+      {sshInfo ? (
+        <Card variant="outlined">
+          <CardContent>
+            <Typography variant="h5" gutterBottom>
+              <Terminal sx={{ mr: 1, verticalAlign: 'middle' }} />
+              SSH Connection Details
+            </Typography>
+            
+            <Typography variant="body1" paragraph>
+              You can connect to this VM using SSH from your local machine.
+            </Typography>
+            
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" gutterBottom>Connection Information:</Typography>
+              <TextField
+                label="Host"
+                value={sshInfo.host}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  readOnly: true,
+                }}
+                variant="outlined"
+              />
+              <TextField
+                label="Port"
+                value={sshInfo.port}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  readOnly: true,
+                }}
+                variant="outlined"
+              />
+              <TextField
+                label="Username"
+                value={sshInfo.username}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  readOnly: true,
+                }}
+                variant="outlined"
+              />
+              <TextField
+                label="Password"
+                value={sshInfo.password}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  readOnly: true,
+                }}
+                variant="outlined"
+              />
+            </Box>
+            
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" gutterBottom>Example SSH Command:</Typography>
+              <TextField
+                value={`ssh ${sshInfo.username}@${sshInfo.host} -p ${sshInfo.port}`}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  readOnly: true,
+                }}
+                variant="outlined"
+              />
+            </Box>
+            
+            <Typography variant="body2" color="text.secondary">
+              Note: SSH access requires port 2222 to be accessible from your network.
+            </Typography>
+          </CardContent>
+        </Card>
+      ) : (
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%'
+        }}>
+          <Typography variant="h6" gutterBottom>
+            SSH information is not available
+          </Typography>
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={refreshVnc}
+            startIcon={<Refresh />}
+          >
+            Refresh
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 
@@ -242,7 +372,7 @@ const VncViewer = () => {
           alignItems: 'center'
         }}>
           <span className="vnc-title">
-            {vmStatus === 'running' ? 'VM Desktop' : 'VM Desktop (Not Running)'}
+            {vmStatus === 'running' ? 'VM Access' : 'VM Access (Not Running)'}
           </span>
           <Box className="vnc-actions">
             <Button
@@ -264,10 +394,20 @@ const VncViewer = () => {
           </Box>
         </Box>
         
+        <Tabs 
+          value={activeTab} 
+          onChange={handleTabChange} 
+          variant="fullWidth"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab label="GUI Desktop" />
+          <Tab label="SSH Access" />
+        </Tabs>
+        
         <Box 
           sx={{ 
             flexGrow: 1,
-            height: isFullscreen ? 'calc(100vh - 40px)' : '500px',
+            height: isFullscreen ? 'calc(100vh - 80px)' : '500px',
             width: '100%', 
             bgcolor: '#f0f0f0',
             position: 'relative'
@@ -287,7 +427,9 @@ const VncViewer = () => {
               <CircularProgress />
             </Box>
           ) : (
-            vncUrl ? renderVncViewer() : renderVncUnavailable()
+            activeTab === 0 ? 
+              (vncUrl ? renderVncViewer() : renderVncUnavailable()) : 
+              renderSshInfo()
           )}
         </Box>
       </Paper>
