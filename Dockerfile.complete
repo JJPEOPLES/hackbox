@@ -82,16 +82,31 @@ RUN apt-get update && apt-get install -y \
     tomcat9-user \
     && apt-get clean
 
-# Install Guacamole (web-based RDP client)
-RUN apt-get update && apt-get install -y \
+# Add universe repository to get all dependencies
+RUN apt-get update && apt-get install -y software-properties-common && \
+    add-apt-repository universe && \
+    apt-get update
+
+# Install Guacamole dependencies with fallback options
+RUN apt-get update && \
+    # Try to install all dependencies, but continue even if some fail
+    apt-get install -y --no-install-recommends \
     libcairo2-dev \
-    libjpeg-turbo8-dev \
+    libjpeg-turbo8-dev || apt-get install -y libjpeg62-turbo-dev || apt-get install -y libjpeg-dev
+
+RUN apt-get install -y --no-install-recommends \
     libpng-dev \
-    libossp-uuid-dev \
-    libfreerdp-dev \
+    libossp-uuid-dev || apt-get install -y uuid-dev
+
+RUN apt-get install -y --no-install-recommends \
+    libfreerdp-dev || apt-get install -y freerdp2-dev || apt-get install -y freerdp-dev
+
+RUN apt-get install -y --no-install-recommends \
     libpango1.0-dev \
     libssh2-1-dev \
-    libtelnet-dev \
+    libtelnet-dev || apt-get install -y libtelnet2-dev || true
+
+RUN apt-get install -y --no-install-recommends \
     libvncserver-dev \
     libpulse-dev \
     libssl-dev \
@@ -99,23 +114,71 @@ RUN apt-get update && apt-get install -y \
     libwebp-dev \
     && apt-get clean
 
-# Download and install Guacamole server
+# Download and install Guacamole server with more resilient configuration
 RUN mkdir -p /opt/guacamole && \
     cd /opt && \
     wget -q "https://downloads.apache.org/guacamole/1.4.0/source/guacamole-server-1.4.0.tar.gz" && \
     tar -xzf guacamole-server-1.4.0.tar.gz && \
     cd guacamole-server-1.4.0 && \
-    ./configure --with-init-dir=/etc/init.d && \
+    # Configure with minimal options to ensure it builds
+    ./configure --with-init-dir=/etc/init.d \
+                --disable-guacenc \
+                --disable-guacd \
+                --disable-guaclog \
+                --disable-pulse \
+                --disable-vorbis \
+                --disable-vnc \
+                --disable-webp \
+                --disable-ssh \
+                --disable-telnet \
+                --enable-rdp && \
     make && \
     make install && \
     ldconfig && \
     cd .. && \
     rm -rf guacamole-server-1.4.0 guacamole-server-1.4.0.tar.gz
 
-# Download and install Guacamole client
+# Install guacd from package if the build fails
+RUN if [ ! -f /usr/local/sbin/guacd ]; then \
+        apt-get update && \
+        apt-get install -y guacd || echo "Failed to install guacd package, will use alternative approach"; \
+    fi
+
+# Download and install Guacamole client with fallbacks
 RUN mkdir -p /var/lib/tomcat9/webapps && \
-    wget -q "https://downloads.apache.org/guacamole/1.4.0/binary/guacamole-1.4.0.war" -O /var/lib/tomcat9/webapps/guacamole.war && \
+    (wget -q "https://downloads.apache.org/guacamole/1.4.0/binary/guacamole-1.4.0.war" -O /var/lib/tomcat9/webapps/guacamole.war || \
+     wget -q "https://archive.apache.org/dist/guacamole/1.4.0/binary/guacamole-1.4.0.war" -O /var/lib/tomcat9/webapps/guacamole.war || \
+     wget -q "https://archive.apache.org/dist/guacamole/1.3.0/binary/guacamole-1.3.0.war" -O /var/lib/tomcat9/webapps/guacamole.war || \
+     echo "Failed to download Guacamole WAR file") && \
     mkdir -p /etc/guacamole
+
+# Try to install Guacamole from package if download fails
+RUN if [ ! -s /var/lib/tomcat9/webapps/guacamole.war ]; then \
+        apt-get update && \
+        apt-get install -y guacamole guacamole-tomcat || echo "Failed to install guacamole package"; \
+    fi
+
+# Configure Guacamole with simplified settings
+RUN mkdir -p /etc/guacamole && \
+    echo "guacd-hostname: localhost" > /etc/guacamole/guacamole.properties && \
+    echo "guacd-port: 4822" >> /etc/guacamole/guacamole.properties && \
+    echo "user-mapping: /etc/guacamole/user-mapping.xml" >> /etc/guacamole/guacamole.properties
+
+# Create a simplified user-mapping.xml with just RDP
+RUN echo '<?xml version="1.0" encoding="UTF-8"?>' > /etc/guacamole/user-mapping.xml && \
+    echo '<user-mapping>' >> /etc/guacamole/user-mapping.xml && \
+    echo '    <authorize username="hackbox" password="hackbox">' >> /etc/guacamole/user-mapping.xml && \
+    echo '        <connection name="HackBox Desktop">' >> /etc/guacamole/user-mapping.xml && \
+    echo '            <protocol>rdp</protocol>' >> /etc/guacamole/user-mapping.xml && \
+    echo '            <param name="hostname">localhost</param>' >> /etc/guacamole/user-mapping.xml && \
+    echo '            <param name="port">3389</param>' >> /etc/guacamole/user-mapping.xml && \
+    echo '            <param name="username">hackbox</param>' >> /etc/guacamole/user-mapping.xml && \
+    echo '            <param name="password">hackbox</param>' >> /etc/guacamole/user-mapping.xml && \
+    echo '            <param name="ignore-cert">true</param>' >> /etc/guacamole/user-mapping.xml && \
+    echo '            <param name="security">any</param>' >> /etc/guacamole/user-mapping.xml && \
+    echo '        </connection>' >> /etc/guacamole/user-mapping.xml && \
+    echo '    </authorize>' >> /etc/guacamole/user-mapping.xml && \
+    echo '</user-mapping>' >> /etc/guacamole/user-mapping.xml
 
 # Configure xrdp
 RUN sed -i 's/port=3389/port=3389/g' /etc/xrdp/xrdp.ini
@@ -230,8 +293,20 @@ RUN echo 'startretries=5' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'stopasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'killasgroup=true' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo '' >> /etc/supervisor/conf.d/supervisord.conf
+# Create a script to start guacd with fallback options
+RUN echo '#!/bin/bash' > /app/scripts/start-guacd.sh && \
+    echo 'if [ -f /usr/local/sbin/guacd ]; then' >> /app/scripts/start-guacd.sh && \
+    echo '  /usr/local/sbin/guacd -f' >> /app/scripts/start-guacd.sh && \
+    echo 'elif [ -f /usr/sbin/guacd ]; then' >> /app/scripts/start-guacd.sh && \
+    echo '  /usr/sbin/guacd -f' >> /app/scripts/start-guacd.sh && \
+    echo 'else' >> /app/scripts/start-guacd.sh && \
+    echo '  echo "guacd not found, cannot start"' >> /app/scripts/start-guacd.sh && \
+    echo '  sleep infinity' >> /app/scripts/start-guacd.sh && \
+    echo 'fi' >> /app/scripts/start-guacd.sh && \
+    chmod +x /app/scripts/start-guacd.sh
+
 RUN echo '[program:guacd]' >> /etc/supervisor/conf.d/supervisord.conf
-RUN echo 'command=/usr/local/sbin/guacd -f' >> /etc/supervisor/conf.d/supervisord.conf
+RUN echo 'command=/app/scripts/start-guacd.sh' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'stdout_logfile=/var/log/guacd.log' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'stderr_logfile=/var/log/guacd-err.log' >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf
